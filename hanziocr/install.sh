@@ -25,6 +25,31 @@ echo "  - Binário: $BIN_DIR"
 sleep 0.5
 
 # ============================================
+# 📂 Instala dependências de sistema
+# ============================================
+echo "📦 Instalando dependências do sistema..."
+sleep 0.5
+
+if command -v dnf >/dev/null 2>&1; then
+  sudo dnf install -y spectacle jq notify-send zenity gcc g++ cmake python3-devel translate-shell
+elif command -v apt >/dev/null 2>&1; then
+  sudo apt install -y spectacle jq notify-send zenity gcc g++ cmake python3-dev translate-shell
+elif command -v pacman >/dev/null 2>&1; then
+  sudo pacman -S --noconfirm spectacle jq notify-send zenity gcc g++ cmake python3 translate-shell
+else
+  echo "❌ Gerenciador de pacotes não suportado! Instale as dependências manualmente."
+  exit 1
+fi
+sleep 0.5
+
+# ============================================
+# 📂 Instala dependências do Python
+# ============================================
+echo "📦 Instalando dependências Python..."
+pip install --user paddleocr paddlepaddle jieba pypinyin pystray Pillow deep-translator
+sleep 0.5
+
+# ============================================
 # 📂 Copia scripts
 # ============================================
 echo "📁 Copiando scripts para $INSTALL_DIR..."
@@ -41,6 +66,7 @@ sleep 0.5
 printf '%s\n' '#!/usr/bin/env bash
 set -euo pipefail
 BASE_DIR="$HOME/.local/share/hanziocr"
+
 case "${1:-}" in
   start|"") exec "$BASE_DIR/hanzi_capture.sh" ;;
   speak)    exec "$BASE_DIR/hanzi_capture_speak.sh" ;;
@@ -48,8 +74,20 @@ case "${1:-}" in
   kill|stop) exec "$BASE_DIR/hanzi_kill.sh" ;;
   tray)     exec python3 "$BASE_DIR/hanzi_ocr_tray.py" ;;
   server)   exec python3 "$BASE_DIR/hanzi_ocr_server.py" ;;
-  *) echo "Uso: hanziocr {start|speak|replay|kill|tray|server}"; exit 1 ;;
-esac' > "$WRAPPER"
+  uninstall)
+    read -rp "⚠️ Deseja realmente remover o HanziOCR? (y/N): " confirm
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+      bash "$BASE_DIR/uninstall.sh"
+    else
+      echo "❎ Cancelado."
+    fi
+    ;;
+  *)
+    echo "Uso: hanziocr {start|speak|replay|kill|tray|server|uninstall}"
+    exit 1
+    ;;
+esac
+' > "$WRAPPER"
 
 chmod +x "$WRAPPER"
 sleep 0.5
@@ -65,6 +103,9 @@ set -euo pipefail
 echo "🧹 Removendo HanziOCR..."
 rm -rf "$HOME/.local/share/hanziocr"
 rm -f "$HOME/.local/bin/hanziocr"
+if command -v notify-send >/dev/null 2>&1; then
+  notify-send "🧹 HanziOCR" "Removido com sucesso!"
+fi
 echo "✅ HanziOCR removido com sucesso!"
 ' > "$UNINSTALL_SCRIPT"
 
@@ -78,6 +119,6 @@ echo "✅ Instalação concluída!"
 echo "📦 Scripts em: $INSTALL_DIR"
 echo "⚙️ Comando disponível: hanziocr"
 echo
-echo "🧹 Para remover: bash $UNINSTALL_SCRIPT"
+echo "🧹 Para remover: hanziocr uninstall"
 echo
 echo "🎉 Execute: hanziocr start"

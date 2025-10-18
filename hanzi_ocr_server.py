@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+import os, json, time, subprocess
+from paddleocr import PaddleOCR
+import jieba
+from pypinyin import pinyin, Style
+
+TMP_DIR = "/tmp/hanzi_ocr"
+REQ_FILE = os.path.join(TMP_DIR, "request.json")
+RES_FILE = os.path.join(TMP_DIR, "response.json")
+PID_FILE = os.path.join(TMP_DIR, "server.pid")
+LANG_FILE = os.path.join(TMP_DIR, "lang.conf")
+
+os.makedirs(TMP_DIR, exist_ok=True)
+with open(PID_FILE, "w") as f:
+    f.write(str(os.getpid()))
+
+# ==== utilidades ====
+
+def safe_init_ocr():
+    """Inicializa o PaddleOCR"""
+    try:
+        print("🈶 Inicializando PaddleOCR...")
+        return PaddleOCR(lang='ch', use_textline_orientation=True)
+    except Exception as e:
+        print(f"⚠️ Falha ao inicializar OCR: {e}")
+        return None
+
+def make_pinyin(text):
+    jieba.setLogLevel(20)
+    words = jieba.lcut(text, cut_all=False)
+    punct = set("，。！？、,.;:!?;：()（）「」『』“”\"'—…·《》[]")
+    parts = []
+    for w in words:
+        if not w.strip():
+            continue
+        if all(ch in punct for ch in w):
+            parts.append(w)
+        else:
+            pys = pinyin(w, style=Style.TONE, heteronym=False)
+            parts.append(f"{w} ({' '.join(s[0] for s in pys)})")
+    return " ".join(parts)
+
+def get_target_lang():
+    """Lê o idioma alvo (pt/en)"""
+    try:
+        with open(LANG_FILE) as f:
+            lang = f.read().strip()
+            if lang in ("en", "pt"):
+                return lang
+    except FileNotFoundError:
+        pass
+    return "pt"
+
+def translate_text(text, target_lang):
+    """Traduz via translate-shell"""
+    try:
+        return subprocess.check_output(["trans", "-b", f"zh:{target_lang}", text], text=True).strip()
+    except Exception as e:
+        print(f"⚠️ Tradução falhou: {e}")
+        return "(sem tradução)"
+
+# ==== inicializa OCR ====
+
+ocr = safe_init_ocr()
+
+if not ocr:
+    print("🚫 Nenhum OCR disponível (falha total). O servidor ainda responderá, mas sem OCR.")
+else:
+    print("🈶 Servidor OCR pronto.")
+
+# ==== loop principal ====
+
+while True:
+    if os.path.exists(REQ_FILE):
+        try:
+            with open(REQ_FILE) as f:
+                data = json.load(f)
+            img_path = data.get("image")
+            if not img_path or not os.path.exists(img_path):
+                time.sleep(1)
+                continue
+
+            print(f"📸 Processando: {img_path}")
+            text = "(erro no OCR)"
+            if ocr:
+                try:
+                    result = ocr.predict(img_path)
+                    texts = []
+                    for page in result:
+                        texts.extend(page.get("rec_texts", []))
+                    text = "".join(texts).strip() or "(nenhum texto detectado)"
+                except Exception as e:
+                    print(f"⚠️ Erro no OCR: {e}")
+
+            pin = make_pinyin(text)
+            target_lang = get_target_lang()
+            trans = translate_text(text, target_lang)
+
+            label = "english" if target_lang == "en" else "portuguese"
+            res = {"chinese": text, "pinyin": pin, label: trans}
+
+            with open(RES_FILE, "w") as f:
+                json.dump(res, f, ensure_ascii=False, indent=2)
+
+            print(f"✅ OCR completo: {text}")
+
+            try:
+                os.remove(REQ_FILE)
+            except FileNotFoundError:
+                pass
+
+        except Exception as e:
+            print(f"❌ Erro no servidor: {e}")
+            time.sleep(2)
+
+    time.sleep(1)

@@ -3,13 +3,19 @@ import os, signal, subprocess, time, threading
 from PIL import Image, ImageDraw
 import pystray
 
+# === diretórios ===
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TMP_DIR = "/tmp/hanzi_ocr"
+CACHE_DIR = os.path.expanduser("~/.cache/hanziocr")
 SERVER_PID = os.path.join(TMP_DIR, "server.pid")
-SERVER_SCRIPT = os.path.expanduser("~/.local/bin/hanzi_ocr_server.py")
+SERVER_SCRIPT = os.path.join(BASE_DIR, "hanzi_ocr_server.py")
 LANG_FILE = os.path.join(TMP_DIR, "lang.conf")
-os.makedirs(TMP_DIR, exist_ok=True)
+HISTORY_FILE = os.path.join(CACHE_DIR, "history.log")
 
-# === ícones coloridos visíveis no Wayland ===
+os.makedirs(TMP_DIR, exist_ok=True)
+os.makedirs(CACHE_DIR, exist_ok=True)
+
+# === ícones visuais ===
 def make_icon(color):
     img = Image.new("RGBA", (64, 64), (255, 255, 255, 0))
     draw = ImageDraw.Draw(img)
@@ -33,9 +39,12 @@ def toggle_lang(icon=None, item=None):
     new_lang = "en" if current == "pt" else "pt"
     with open(LANG_FILE, "w") as f:
         f.write(new_lang)
-    subprocess.Popen(["notify-send", "🌐 Hanzi OCR", f"Idioma alterado para {'Inglês 🇬🇧' if new_lang == 'en' else 'Português 🇧🇷'}"])
+    subprocess.Popen([
+        "notify-send", "🌐 Hanzi OCR",
+        f"Idioma alterado para {'Inglês 🇬🇧' if new_lang == 'en' else 'Português 🇧🇷'}"
+    ])
 
-# === verifica se o servidor está rodando ===
+# === verificar e controlar servidor ===
 def server_running():
     if not os.path.exists(SERVER_PID):
         return False
@@ -47,7 +56,6 @@ def server_running():
     except Exception:
         return False
 
-# === iniciar servidor ===
 def start_server(icon=None, item=None):
     if server_running():
         return
@@ -60,7 +68,6 @@ def start_server(icon=None, item=None):
     subprocess.Popen(["notify-send", "🟢 Hanzi OCR", "Servidor iniciado."])
     time.sleep(1)
 
-# === parar servidor ===
 def stop_server(icon=None, item=None):
     if not server_running():
         return
@@ -73,21 +80,30 @@ def stop_server(icon=None, item=None):
     except Exception:
         pass
 
-# === abrir pasta temporária ===
+# === atalhos utilitários ===
 def open_folder(icon=None, item=None):
     subprocess.Popen(["xdg-open", TMP_DIR], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-# === executar scripts utilitários ===
+def open_history(icon=None, item=None):
+    """Abre o histórico de OCR no editor padrão"""
+    if not os.path.exists(HISTORY_FILE):
+        with open(HISTORY_FILE, "w") as f:
+            f.write("📜 Histórico vazio.\n")
+    subprocess.Popen(["xdg-open", HISTORY_FILE], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
 def run_capture(icon=None, item=None):
-    subprocess.Popen(["bash", os.path.expanduser("~/.local/bin/hanzi_capture.sh")])
+    subprocess.Popen(["bash", os.path.join(BASE_DIR, "hanzi_capture.sh")])
 
 def run_speak(icon=None, item=None):
-    subprocess.Popen(["bash", os.path.expanduser("~/.local/bin/hanzi_speak.sh")])
+    subprocess.Popen(["bash", os.path.join(BASE_DIR, "hanzi_capture_speak.sh")])
 
 def run_replay(icon=None, item=None):
-    subprocess.Popen(["bash", os.path.expanduser("~/.local/bin/hanzi_replay.sh")])
+    subprocess.Popen(["bash", os.path.join(BASE_DIR, "hanzi_replay.sh")])
 
-# === sair do tray ===
+def run_kill(icon=None, item=None):
+    subprocess.Popen(["bash", os.path.join(BASE_DIR, "hanzi_kill.sh")])
+
+# === sair ===
 def exit_tray(icon, item):
     try:
         stop_server()
@@ -96,7 +112,7 @@ def exit_tray(icon, item):
     subprocess.Popen(["notify-send", "👋 Hanzi OCR", "Tray encerrado."])
     icon.stop()
 
-# === atualiza ícone e menu dinamicamente ===
+# === atualiza ícone e menu ===
 def refresh(icon):
     while True:
         running = server_running()
@@ -106,29 +122,28 @@ def refresh(icon):
 
         lang_label = f"🌐 Idioma: {'Português 🇧🇷' if lang == 'pt' else 'Inglês 🇬🇧'}"
 
+        menu_items = [
+            pystray.MenuItem(lang_label, toggle_lang),
+            pystray.MenuItem("📜 Ver histórico", open_history),
+            pystray.MenuItem("📂 Pasta temporária", open_folder),
+            pystray.MenuItem("🎥 Captura", run_capture),
+            pystray.MenuItem("🔊 Speak", run_speak),
+            pystray.MenuItem("♻️ Replay", run_replay),
+            pystray.MenuItem("🧹 Kill All", run_kill),
+            pystray.Menu.SEPARATOR,
+        ]
+
         if running:
-            icon.menu = pystray.Menu(
-                pystray.MenuItem("🟥 Parar Servidor", stop_server),
-                pystray.MenuItem(lang_label, toggle_lang),
-                pystray.MenuItem("📂 Abrir Pasta OCR", open_folder),
-                pystray.MenuItem("🎥 Captura", run_capture),
-                pystray.MenuItem("🔊 Speak", run_speak),
-                pystray.MenuItem("♻️ Replay", run_replay),
-                pystray.MenuItem("🚪 Sair (encerra tudo)", lambda: exit_tray(icon, None)),
-            )
+            menu_items.insert(0, pystray.MenuItem("🟥 Parar Servidor", stop_server))
+            menu_items.append(pystray.MenuItem("🚪 Sair (encerra tudo)", lambda: exit_tray(icon, None)))
         else:
-            icon.menu = pystray.Menu(
-                pystray.MenuItem("🟩 Iniciar Servidor", start_server),
-                pystray.MenuItem(lang_label, toggle_lang),
-                pystray.MenuItem("📂 Abrir Pasta OCR", open_folder),
-                pystray.MenuItem("🎥 Captura", run_capture),
-                pystray.MenuItem("🔊 Speak", run_speak),
-                pystray.MenuItem("♻️ Replay", run_replay),
-                pystray.MenuItem("🚪 Sair", lambda: exit_tray(icon, None)),
-            )
+            menu_items.insert(0, pystray.MenuItem("🟩 Iniciar Servidor", start_server))
+            menu_items.append(pystray.MenuItem("🚪 Sair", lambda: exit_tray(icon, None)))
+
+        icon.menu = pystray.Menu(*menu_items)
         time.sleep(1.5)
 
-# === inicia o tray e servidor junto ===
+# === main ===
 def main():
     icon = pystray.Icon("hanzi_ocr", ICON_OFF, "Hanzi OCR — Parado 🔴")
     start_server()

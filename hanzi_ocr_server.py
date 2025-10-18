@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
-import os, json, time, subprocess
+import os
+import json
+import time
+import subprocess
 from paddleocr import PaddleOCR
 import jieba
 from pypinyin import pinyin, Style
 
+# Diretório base do script (onde estão os outros)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Diretórios e arquivos temporários
 TMP_DIR = "/tmp/hanzi_ocr"
 REQ_FILE = os.path.join(TMP_DIR, "request.json")
 RES_FILE = os.path.join(TMP_DIR, "response.json")
@@ -15,17 +22,29 @@ with open(PID_FILE, "w") as f:
     f.write(str(os.getpid()))
 
 # ==== utilidades ====
-
 def safe_init_ocr():
-    """Inicializa o PaddleOCR"""
+    """Inicializa o PaddleOCR (versão >=3.3.0, compatível e silenciosa)."""
     try:
         print("🈶 Inicializando PaddleOCR...")
-        return PaddleOCR(lang='ch', use_textline_orientation=True)
+        try:
+            from paddleocr.tools.infer import utility
+            utility.disable_log()
+        except Exception:
+            pass  # se não existir, ignora sem quebrar
+
+        ocr = PaddleOCR(
+            lang='ch',
+            use_textline_orientation=True,
+            device='gpu'  # troque por 'cpu' se não tiver suporte
+        )
+        return ocr
     except Exception as e:
         print(f"⚠️ Falha ao inicializar OCR: {e}")
         return None
 
+
 def make_pinyin(text):
+    """Gera pinyin com acentuação (jieba + pypinyin)."""
     jieba.setLogLevel(20)
     words = jieba.lcut(text, cut_all=False)
     punct = set("，。！？、,.;:!?;：()（）「」『』“”\"'—…·《》[]")
@@ -40,8 +59,9 @@ def make_pinyin(text):
             parts.append(f"{w} ({' '.join(s[0] for s in pys)})")
     return " ".join(parts)
 
+
 def get_target_lang():
-    """Lê o idioma alvo (pt/en)"""
+    """Lê o idioma alvo (pt/en)."""
     try:
         with open(LANG_FILE) as f:
             lang = f.read().strip()
@@ -51,30 +71,38 @@ def get_target_lang():
         pass
     return "pt"
 
+
 def translate_text(text, target_lang):
-    """Traduz via translate-shell"""
+    """Traduz o texto usando translate-shell ou fallback online."""
     try:
-        return subprocess.check_output(["trans", "-b", f"zh:{target_lang}", text], text=True).strip()
-    except Exception as e:
-        print(f"⚠️ Tradução falhou: {e}")
-        return "(sem tradução)"
+        return subprocess.check_output(
+            ["trans", "-b", f"zh:{target_lang}", text],
+            text=True
+        ).strip()
+    except Exception:
+        try:
+            from deep_translator import GoogleTranslator
+            return GoogleTranslator(source='auto', target=target_lang).translate(text)
+        except Exception as e2:
+            print(f"⚠️ Tradução falhou: {e2}")
+            return "(sem tradução)"
+
 
 # ==== inicializa OCR ====
-
 ocr = safe_init_ocr()
-
 if not ocr:
     print("🚫 Nenhum OCR disponível (falha total). O servidor ainda responderá, mas sem OCR.")
 else:
     print("🈶 Servidor OCR pronto.")
 
-# ==== loop principal ====
 
+# ==== loop principal ====
 while True:
     if os.path.exists(REQ_FILE):
         try:
             with open(REQ_FILE) as f:
                 data = json.load(f)
+
             img_path = data.get("image")
             if not img_path or not os.path.exists(img_path):
                 time.sleep(1)
@@ -82,6 +110,7 @@ while True:
 
             print(f"📸 Processando: {img_path}")
             text = "(erro no OCR)"
+
             if ocr:
                 try:
                     result = ocr.predict(img_path)
@@ -95,9 +124,13 @@ while True:
             pin = make_pinyin(text)
             target_lang = get_target_lang()
             trans = translate_text(text, target_lang)
-
             label = "english" if target_lang == "en" else "portuguese"
-            res = {"chinese": text, "pinyin": pin, label: trans}
+
+            res = {
+                "chinese": text,
+                "pinyin": pin,
+                label: trans
+            }
 
             with open(RES_FILE, "w") as f:
                 json.dump(res, f, ensure_ascii=False, indent=2)
@@ -111,6 +144,7 @@ while True:
 
         except Exception as e:
             print(f"❌ Erro no servidor: {e}")
-            time.sleep(2)
+
+        time.sleep(2)
 
     time.sleep(1)

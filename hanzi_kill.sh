@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Diretório base (mantém consistência com os outros scripts)
+BASE_DIR="$(dirname "$0")"
+
 TMP_DIR="/tmp/hanzi_ocr"
 PID_FILE="$TMP_DIR/server.pid"
 
@@ -21,6 +24,6 @@ pkill -f "hanzi_ocr_server.py" 2>/dev/null || true
 pkill -f "hanzi_ocr_tray.py" 2>/dev/null || true
 
 # === limpa arquivos temporários ===
-rm -f "$TMP_DIR"/*.json "$TMP_DIR"/*.png 2>/dev/null || true
+rm -f "$TMP_DIR"/*.json "$TMP_DIR"/*.png "$TMP_DIR"/*.mp3 2>/dev/null || true
 
 notify-send "🧹 Hanzi OCR" "Todos os processos e temporários foram encerrados."

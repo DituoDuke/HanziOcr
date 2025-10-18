@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Diretório base (onde estão os outros scripts)
+BASE_DIR="$(dirname "$0")"
+
 TMP_DIR="/tmp/hanzi_ocr"
 RES_FILE="$TMP_DIR/response.json"
 TMP_MP3="$TMP_DIR/replay_tts.mp3"

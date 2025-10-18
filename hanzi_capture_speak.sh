@@ -1,19 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Diretório base onde estão os outros scripts
+BASE_DIR="$(dirname "$0")"
+
 TMP_DIR="/tmp/hanzi_ocr"
 mkdir -p "$TMP_DIR"
 RES_FILE="$TMP_DIR/response.json"
 TMP_MP3="$TMP_DIR/hanzi_tts.mp3"
 
 # roda o capture quieto
-if [ -x "$HOME/.local/bin/hanzi_capture.sh" ]; then
-  "$HOME/.local/bin/hanzi_capture.sh" --quiet >/dev/null || {
+if [ -x "$BASE_DIR/hanzi_capture.sh" ]; then
+  "$BASE_DIR/hanzi_capture.sh" --quiet >/dev/null || {
     notify-send "🛑 Cancelado" "Captura cancelada ou falhou."
     exit 0
   }
 else
-  notify-send "Erro" "hanzi_capture.sh não encontrado em ~/.local/bin/"
+  notify-send "Erro" "hanzi_capture.sh não encontrado em $BASE_DIR/"
   exit 1
 fi
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Diretório base (onde estão os outros scripts)
 BASE_DIR="$(dirname "$0")"
 
 TMP_DIR="/tmp/hanzi_ocr"
@@ -23,14 +22,12 @@ Translation: $TRANSLATION"
 
 notify-send "🈶 Replay OCR" "$FINAL"
 
-# copia pro clipboard
 if command -v wl-copy &>/dev/null; then
   echo -n "$FINAL" | wl-copy
 elif command -v xclip &>/dev/null; then
   echo -n "$FINAL" | xclip -selection clipboard
 fi
 
-# fala o texto chinês
 if [ -n "$CHINESE" ] && [ "$CHINESE" != "(nenhum texto detectado)" ]; then
   if command -v gtts-cli &>/dev/null; then
     gtts-cli "$CHINESE" -l zh-cn -o "$TMP_MP3" && mpv --really-quiet "$TMP_MP3"

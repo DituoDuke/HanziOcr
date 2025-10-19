@@ -26,7 +26,6 @@ notify_safe() {
   fi
 }
 
-# === inicia o TRAY se não estiver rodando ===
 start_tray_if_needed() {
   if pgrep -f "[h]anzi_ocr_tray.py" >/dev/null 2>&1; then
     return 0
@@ -55,7 +54,6 @@ start_tray_if_needed() {
 
 start_tray_if_needed
 
-# === captura imagem ===
 rm -f "$IMG"
 if command -v spectacle &>/dev/null; then
   spectacle -r -b -o "$IMG"
@@ -68,13 +66,10 @@ else
   exit 1
 fi
 
-# se cancelou
 if [ ! -s "$IMG" ]; then
   notify_safe "🈶 OCR Chinese (Capture)" "Captura cancelada."
   exit 0
 fi
-
-# === cria requisição e aguarda resposta ===
 echo "{\"image\": \"$IMG\"}" > "$REQ_FILE"
 REQ_TIME=$(date +%s)
 
@@ -104,8 +99,6 @@ Pinyin:  $PINYIN
 Translation: $TRANSLATION"
 
 echo "$FINAL" > "$OUTTXT"
-
-# === histórico: adiciona no topo ===
 {
   echo "----- $(date '+%Y-%m-%d %H:%M:%S') -----"
   echo "$FINAL"
@@ -117,7 +110,6 @@ echo "$FINAL" > "$OUTTXT"
 
 mv "$HISTORY_FILE.tmp" "$HISTORY_FILE"
 
-# copia pro clipboard
 if command -v wl-copy &>/dev/null; then
   echo -n "$FINAL" | wl-copy
 elif command -v xclip &>/dev/null; then

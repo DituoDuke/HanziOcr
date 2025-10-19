@@ -35,8 +35,9 @@ fi
 FINAL="Chinese: $CHINESE
 Pinyin: $PINYIN
 Translation: $TRANSLATION"
+ENCODED=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''$CHINESE'''))")
+MDBG="https://www.mdbg.net/chinese/dictionary?page=worddict&wdrst=0&wdqb=${ENCODED}"
 
-notify-send "🈶 OCR Chinese (Speak)" "$FINAL"
 
 if command -v wl-copy &>/dev/null; then
   echo -n "$FINAL" | wl-copy
@@ -45,8 +46,8 @@ elif command -v xclip &>/dev/null; then
 fi
 
 if command -v xdg-open &>/dev/null; then
-  ENCODED=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''$CHINESE'''))")
-  xdg-open "https://www.mdbg.net/chinese/dictionary?page=worddict&wdrst=0&wdqb=${ENCODED}" &>/dev/null &
+
+  xdg-open "$MDBG"
 fi
 
 if command -v gtts-cli &>/dev/null; then

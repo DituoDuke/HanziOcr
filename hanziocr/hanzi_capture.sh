@@ -70,6 +70,7 @@ if [ ! -s "$IMG" ]; then
   notify_safe "🈶 OCR Chinese (Capture)" "Captura cancelada."
   exit 0
 fi
+
 echo "{\"image\": \"$IMG\"}" > "$REQ_FILE"
 REQ_TIME=$(date +%s)
 
@@ -93,15 +94,19 @@ done
 CHINESE=$(jq -r '.chinese' "$RES_FILE")
 PINYIN=$(jq -r '.pinyin' "$RES_FILE")
 TRANSLATION=$(jq -r '.english // .portuguese' "$RES_FILE")
+ENCODED=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''$CHINESE'''))")
+MDBG="https://www.mdbg.net/chinese/dictionary?page=worddict&wdrst=0&wdqb=${ENCODED}"
 
 FINAL="Chinese: $CHINESE
 Pinyin:  $PINYIN
 Translation: $TRANSLATION"
 
 echo "$FINAL" > "$OUTTXT"
+
 {
   echo "----- $(date '+%Y-%m-%d %H:%M:%S') -----"
   echo "$FINAL"
+  echo "MDBG: $MDBG"
   echo
   if [ -f "$HISTORY_FILE" ]; then
     cat "$HISTORY_FILE"
@@ -116,5 +121,17 @@ elif command -v xclip &>/dev/null; then
   echo -n "$FINAL" | xclip -selection clipboard
 fi
 
-notify_safe "🈶 Hanzi OCR" "$FINAL"
+
+(
+  response=$(timeout 30s notify-send --action 'open_url=MDBG' '🈶 Hanzi OCR' "$FINAL")
+  case "$response" in
+      "open_url")
+          if command -v xdg-open &>/dev/null; then
+            xdg-open "$MDBG"
+          fi
+          ;;
+      *)
+          ;;
+  esac
+) & disown
 echo "$FINAL"

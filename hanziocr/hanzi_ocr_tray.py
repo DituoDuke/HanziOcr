@@ -20,9 +20,8 @@ def make_icon(color):
     draw.ellipse((8, 8, 56, 56), fill=color)
     return img
 
-ICON_ON = make_icon((0, 210, 0, 255))     
-ICON_OFF = make_icon((230, 60, 60, 255))  
-
+ICON_ON = make_icon((0, 210, 0, 255))     # 🟢 ativo
+ICON_OFF = make_icon((230, 60, 60, 255))  # 🔴 parado
 
 def get_lang():
     if os.path.exists(LANG_FILE):
@@ -81,7 +80,6 @@ def open_folder(icon=None, item=None):
     subprocess.Popen(["xdg-open", TMP_DIR], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def open_history(icon=None, item=None):
-    """Abre o histórico de OCR no editor padrão"""
     if not os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE, "w") as f:
             f.write("📜 Histórico vazio.\n")

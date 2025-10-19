@@ -18,22 +18,21 @@ LANG_FILE = os.path.join(TMP_DIR, "lang.conf")
 os.makedirs(TMP_DIR, exist_ok=True)
 with open(PID_FILE, "w") as f:
     f.write(str(os.getpid()))
-    
+
 def safe_init_ocr():
-    """Inicializa o PaddleOCR (versão >=3.3.0, compatível e silenciosa)."""
     try:
         print("🈶 Inicializando PaddleOCR...")
         try:
             from paddleocr.tools.infer import utility
             utility.disable_log()
         except Exception:
-            pass 
+            pass
 
-        ocr = PaddleOCR(
-            lang='ch',
-            use_textline_orientation=True,
-            device='gpu'  # troca sozinho pra cpu caso sua gpu não tenha suporte, ou não possui o paddlepaddle certo instalado
-        )
+            ocr = PaddleOCR(
+                lang='ch',
+                use_textline_orientation=True,
+                device='gpu'  # Troca automaticamente por cpu qualquer coisa (Liga pelo terminal se não confia)
+            )
         return ocr
     except Exception as e:
         print(f"⚠️ Falha ao inicializar OCR: {e}")
@@ -41,7 +40,7 @@ def safe_init_ocr():
 
 
 def make_pinyin(text):
-    """Gera pinyin com acentuação (jieba + pypinyin)."""
+
     jieba.setLogLevel(20)
     words = jieba.lcut(text, cut_all=False)
     punct = set("，。！？、,.;:!?;：()（）「」『』“”\"'—…·《》[]")
@@ -58,7 +57,6 @@ def make_pinyin(text):
 
 
 def get_target_lang():
-    """Lê o idioma alvo (pt/en)."""
     try:
         with open(LANG_FILE) as f:
             lang = f.read().strip()
@@ -70,7 +68,6 @@ def get_target_lang():
 
 
 def translate_text(text, target_lang):
-    """Traduz o texto usando translate-shell ou fallback online."""
     try:
         return subprocess.check_output(
             ["trans", "-b", f"zh:{target_lang}", text],
@@ -84,11 +81,13 @@ def translate_text(text, target_lang):
             print(f"⚠️ Tradução falhou: {e2}")
             return "(sem tradução)"
 
+
 ocr = safe_init_ocr()
 if not ocr:
     print("🚫 Nenhum OCR disponível (falha total). O servidor ainda responderá, mas sem OCR.")
 else:
     print("🈶 Servidor OCR pronto.")
+
 
 while True:
     if os.path.exists(REQ_FILE):

@@ -3,7 +3,6 @@ import os, signal, subprocess, time, threading
 from PIL import Image, ImageDraw
 import pystray
 
-# === diretórios ===
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TMP_DIR = "/tmp/hanzi_ocr"
 CACHE_DIR = os.path.expanduser("~/.cache/hanziocr")
@@ -15,17 +14,16 @@ HISTORY_FILE = os.path.join(CACHE_DIR, "history.log")
 os.makedirs(TMP_DIR, exist_ok=True)
 os.makedirs(CACHE_DIR, exist_ok=True)
 
-# === ícones visuais ===
 def make_icon(color):
     img = Image.new("RGBA", (64, 64), (255, 255, 255, 0))
     draw = ImageDraw.Draw(img)
     draw.ellipse((8, 8, 56, 56), fill=color)
     return img
 
-ICON_ON = make_icon((0, 210, 0, 255))     # 🟢 ativo
-ICON_OFF = make_icon((230, 60, 60, 255))  # 🔴 parado
+ICON_ON = make_icon((0, 210, 0, 255))     
+ICON_OFF = make_icon((230, 60, 60, 255))  
 
-# === idioma atual e alternância ===
+
 def get_lang():
     if os.path.exists(LANG_FILE):
         with open(LANG_FILE) as f:
@@ -44,7 +42,6 @@ def toggle_lang(icon=None, item=None):
         f"Idioma alterado para {'Inglês 🇬🇧' if new_lang == 'en' else 'Português 🇧🇷'}"
     ])
 
-# === verificar e controlar servidor ===
 def server_running():
     if not os.path.exists(SERVER_PID):
         return False
@@ -80,7 +77,6 @@ def stop_server(icon=None, item=None):
     except Exception:
         pass
 
-# === atalhos utilitários ===
 def open_folder(icon=None, item=None):
     subprocess.Popen(["xdg-open", TMP_DIR], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -103,7 +99,6 @@ def run_replay(icon=None, item=None):
 def run_kill(icon=None, item=None):
     subprocess.Popen(["bash", os.path.join(BASE_DIR, "hanzi_kill.sh")])
 
-# === sair ===
 def exit_tray(icon, item):
     try:
         stop_server()
@@ -112,7 +107,6 @@ def exit_tray(icon, item):
     subprocess.Popen(["notify-send", "👋 Hanzi OCR", "Tray encerrado."])
     icon.stop()
 
-# === atualiza ícone e menu ===
 def refresh(icon):
     while True:
         running = server_running()
@@ -143,7 +137,6 @@ def refresh(icon):
         icon.menu = pystray.Menu(*menu_items)
         time.sleep(1.5)
 
-# === main ===
 def main():
     icon = pystray.Icon("hanzi_ocr", ICON_OFF, "Hanzi OCR — Parado 🔴")
     start_server()

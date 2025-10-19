@@ -7,10 +7,8 @@ from paddleocr import PaddleOCR
 import jieba
 from pypinyin import pinyin, Style
 
-# Diretório base do script (onde estão os outros)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Diretórios e arquivos temporários
 TMP_DIR = "/tmp/hanzi_ocr"
 REQ_FILE = os.path.join(TMP_DIR, "request.json")
 RES_FILE = os.path.join(TMP_DIR, "response.json")
@@ -20,8 +18,7 @@ LANG_FILE = os.path.join(TMP_DIR, "lang.conf")
 os.makedirs(TMP_DIR, exist_ok=True)
 with open(PID_FILE, "w") as f:
     f.write(str(os.getpid()))
-
-# ==== utilidades ====
+    
 def safe_init_ocr():
     """Inicializa o PaddleOCR (versão >=3.3.0, compatível e silenciosa)."""
     try:
@@ -30,12 +27,12 @@ def safe_init_ocr():
             from paddleocr.tools.infer import utility
             utility.disable_log()
         except Exception:
-            pass  # se não existir, ignora sem quebrar
+            pass 
 
         ocr = PaddleOCR(
             lang='ch',
             use_textline_orientation=True,
-            device='gpu'  # troque por 'cpu' se não tiver suporte
+            device='gpu'  # troca sozinho pra cpu caso sua gpu não tenha suporte, ou não possui o paddlepaddle certo instalado
         )
         return ocr
     except Exception as e:
@@ -87,16 +84,12 @@ def translate_text(text, target_lang):
             print(f"⚠️ Tradução falhou: {e2}")
             return "(sem tradução)"
 
-
-# ==== inicializa OCR ====
 ocr = safe_init_ocr()
 if not ocr:
     print("🚫 Nenhum OCR disponível (falha total). O servidor ainda responderá, mas sem OCR.")
 else:
     print("🈶 Servidor OCR pronto.")
 
-
-# ==== loop principal ====
 while True:
     if os.path.exists(REQ_FILE):
         try:
